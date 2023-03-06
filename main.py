@@ -1,5 +1,6 @@
 import os
 import json
+import time
 
 import httpx, discord, aiosqlite
 from numpy.random import MT19937, RandomState
@@ -71,7 +72,7 @@ db = None
 
 
 @bot.event
-async def on_connect():
+async def on_ready():
     global db
 
     db_filename = os.environ.get("SQLITE_DB_FILE", "db.sqlite3")
@@ -116,7 +117,7 @@ async def on_ready():
     print(f"{bot.user} is ready and online!")
 
 
-@bot.slash_command(description = "Given the first three pins, gives a pin valid for the next 18mn")
+@bot.slash_command(description="Gimme the first three pins")
 async def moodle_pins(
     ctx, pin0: discord.Option(int), pin1: discord.Option(int), pin2: discord.Option(int)
 ):
@@ -173,9 +174,7 @@ async def moodle_pins(
         if seed2aggpins(seed) == target_aggpins:
             seeds.append(seed)
 
-    print(
-        f"{ctx.interaction.id} {ctx.author.id} {ctx.author.name} got seeds {seeds}"
-    )
+    print(f"{ctx.interaction.id} {ctx.author.id} {ctx.author.name} got seeds {seeds}")
 
     if len(seeds) == 0:
         await ctx.respond("Wrong pins (╬ Ò﹏Ó)", ephemeral=True)
@@ -186,7 +185,7 @@ async def moodle_pins(
         INSERT INTO past_inputs(aggpins, seeds, author_id)
         VALUES(?, ?, ?)
         """,
-        [target_aggpins, json.dumps(seeds), ctx.author.id]
+        [target_aggpins, json.dumps(seeds), ctx.author.id],
     )
     await db.execute(
         """
@@ -195,12 +194,14 @@ async def moodle_pins(
         ON CONFLICT(author_id)
         DO UPDATE SET score = score + ?, author_name = ?
         """,
-        [ctx.author.id, ctx.author.display_name, 1, 1, ctx.author.display_name]
+        [ctx.author.id, ctx.author.display_name, 1, 1, ctx.author.display_name],
     )
     await db.commit()
 
     current_leaderboard = "== LEADERBOARD ==\n"
-    query_leaderboard = "SELECT author_name, score FROM leaderboard ORDER BY score DESC LIMIT 3"
+    query_leaderboard = (
+        "SELECT author_name, score FROM leaderboard ORDER BY score DESC LIMIT 3"
+    )
     async with db.execute(query_leaderboard) as cursor:
         async for row in cursor:
             current_leaderboard += f"=> {row[0]} ({row[1]} points)\n"
@@ -210,7 +211,9 @@ async def moodle_pins(
         next_three_pins = pinslist[2:5]
         next_three_pins_str = ", ".join(str(pin) for pin in next_three_pins)
 
-        await ctx.respond(f"The next three pins are: {next_three_pins_str}\n\n{current_leaderboard}")
+        await ctx.respond(
+            f"The next three pins are: {next_three_pins_str}\n\nUse /moodle_late if you're late to enter the codes.\n\n{current_leaderboard}"
+        )
     else:
         next_pins_str = ""
         for seed in seeds:
@@ -220,7 +223,48 @@ async def moodle_pins(
 
             next_pins_str += f"- {next_three_pins_str}\n"
 
-        await ctx.respond(f"The next three pins are one of these:\n{next_pins_str}\n\n{current_leaderboard}")
+        await ctx.respond(
+            f"The next three pins are one of these:\n{next_pins_str}\nUse /moodle_late if you're late to enter the codes.\n\n{current_leaderboard}"
+        )
+
+
+@bot.slash_command(description="Oh, you're late? Just ask me the pins!")
+async def moodle_late(ctx):
+    current_seeds = []
+    query_recent_seeds = """
+    SELECT seeds, datetime
+    FROM past_inputs
+    WHERE datetime > unixepoch('now', '-1120 seconds')
+    ORDER BY datetime DESC;
+    """
+    async with db.execute(query_recent_seeds) as cursor:
+        async for row in cursor:
+            for seed in json.loads(row[0]):
+                current_seeds.append((seed, float(row[1])))
+
+    if len(current_seeds) == 0:
+        await ctx.respond("You're either too late or too early mate :/", ephemeral=True)
+    elif len(current_seeds) == 1:
+        pinslist = seed2pins(current_seeds[0][0])
+        i = (int(time.time()) - int(current_seeds[0][1])) // 40 + 2
+        next_three_pins = pinslist[i : i + 3]
+        next_three_pins_str = ", ".join(str(pin) for pin in next_three_pins)
+
+        await ctx.respond(
+            f"The next three pins are: {next_three_pins_str}", ephemeral=True
+        )
+    else:
+        next_pins_str = ""
+        for (seed, timestamp) in current_seeds:
+            pinslist = seed2pins(seed)
+            i = (int(time.time()) - int(timestamp)) // 40 + 2
+            next_three_pins = pinslist[i : i + 3]
+            next_three_pins_str = ", ".join(str(pin) for pin in next_three_pins)
+            next_pins_str += f"- {next_three_pins_str}\n"
+
+        await ctx.respond(
+            f"The next three pins are one of these:\n{next_pins_str}", ephemeral=True
+        )
 
 
 bot.run(os.environ.get("DISCORD_TOKEN"))
