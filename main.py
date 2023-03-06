@@ -72,7 +72,9 @@ async def on_connect():
         """
         CREATE TABLE IF NOT EXISTS past_inputs(
             aggpins INTEGER PRIMARY KEY,
-            author_id INTEGER
+            seed INTEGER DEFAULT NULL,
+            author_id INTEGER,
+            date REAL DEFAULT (unixepoch('now'))
         );
 
         CREATE TABLE IF NOT EXISTS leaderboard(
@@ -82,6 +84,9 @@ async def on_connect():
                 (unixepoch('now', 'start of day', 'weekday 0')),
             score INTEGER
         );
+
+        CREATE INDEX IF NOT EXISTS
+            index_past_inputs_date on past_inputs(date);
 
         CREATE INDEX IF NOT EXISTS
             index_leaderboard_weekdate on leaderboard(weekdate);
