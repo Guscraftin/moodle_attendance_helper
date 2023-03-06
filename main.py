@@ -1,4 +1,5 @@
 import os
+import json
 
 import httpx, discord, aiosqlite
 from numpy.random import MT19937, RandomState
@@ -24,24 +25,31 @@ def seed2aggpins(seed):
     return pins2aggpins([mt.random_raw() % 9001 + 1000 for _ in range(3)])
 
 
-def seed2finalpin(seed):
+def seed2pins_iter(seed):
     rs = RandomState(seed)
     mt = MT19937()
     mt.state = rs.get_state()
 
-    for _ in range(31):
-        mt.random_raw()
+    mt.random_raw()
+    mt.random_raw()
 
-    return mt.random_raw() % 9001 + 1000
+    for _ in range(30):
+        yield mt.random_raw() % 9001 + 1000
 
 
-async def get_seed_lookup_data(pin0):
+def seed2pins(seed):
+    return list(seed2pins_iter(seed))
+
+
+async def get_seed_lookup_data(ctx, pin0):
     local_lookup_folder = os.environ.get("LOCAL_LOOKUP_FOLDER")
     if local_lookup_folder is not None:
         filename = os.path.join(local_lookup_folder, str(pin0 // 1000), str(pin0))
         file = open(filename, "rb")
         data = file.read()
     else:
+        await ctx.defer()
+
         cid = constants.IPFS_CIDS[pin0 // 1000 - 1]
         if pin0 == 10000:
             url = f"https://{cid}.ipfs.nftstorage.link/"
@@ -72,9 +80,9 @@ async def on_connect():
         """
         CREATE TABLE IF NOT EXISTS past_inputs(
             aggpins INTEGER PRIMARY KEY,
-            seed INTEGER DEFAULT NULL,
+            seeds TEXT DEFAULT "[]",
             author_id INTEGER,
-            date REAL DEFAULT (unixepoch('now'))
+            datetime REAL DEFAULT (unixepoch('now'))
         );
 
         CREATE TABLE IF NOT EXISTS leaderboard(
@@ -86,7 +94,7 @@ async def on_connect():
         );
 
         CREATE INDEX IF NOT EXISTS
-            index_past_inputs_date on past_inputs(date);
+            index_past_inputs_datetime on past_inputs(datetime);
 
         CREATE INDEX IF NOT EXISTS
             index_leaderboard_weekdate on leaderboard(weekdate);
@@ -133,9 +141,7 @@ async def moodle_pins(
                 return
             break
 
-    await ctx.defer()
-
-    data = await get_seed_lookup_data(pin0)
+    data = await get_seed_lookup_data(ctx, pin0)
 
     left = 0
     right = len(data) // 4
@@ -161,37 +167,35 @@ async def moodle_pins(
             right = mid + 8
 
     seeds = []
-    final_pins = []
     for i in range(left, right):
         seed_bytes = data[i * 4 : i * 4 + 4]
         seed = int.from_bytes(seed_bytes, "big")
         if seed2aggpins(seed) == target_aggpins:
             seeds.append(seed)
-            final_pins.append(seed2finalpin(seed))
 
     print(
-        f"{ctx.interaction.id} {ctx.author.id} {ctx.author.name} got seeds {seeds} and pins {final_pins}"
+        f"{ctx.interaction.id} {ctx.author.id} {ctx.author.name} got seeds {seeds}"
     )
 
-    if len(final_pins) == 0:
+    if len(seeds) == 0:
         await ctx.respond("Wrong pins (╬ Ò﹏Ó)", ephemeral=True)
         return
 
     await db.execute(
         """
-        INSERT INTO past_inputs(aggpins, author_id)
-        VALUES(?, ?)
+        INSERT INTO past_inputs(aggpins, seeds, author_id)
+        VALUES(?, ?, ?)
         """,
-        [target_aggpins, ctx.author.id]
+        [target_aggpins, json.dumps(seeds), ctx.author.id]
     )
     await db.execute(
         """
         INSERT INTO leaderboard(author_id, author_name, score)
         VALUES(?, ?, ?)
         ON CONFLICT(author_id)
-        DO UPDATE SET score = score + ?
+        DO UPDATE SET score = score + ?, author_name = ?
         """,
-        [ctx.author.id, ctx.author.display_name, 1, 1]
+        [ctx.author.id, ctx.author.display_name, 1, 1, ctx.author.display_name]
     )
     await db.commit()
 
@@ -199,12 +203,24 @@ async def moodle_pins(
     query_leaderboard = "SELECT author_name, score FROM leaderboard ORDER BY score DESC LIMIT 3"
     async with db.execute(query_leaderboard) as cursor:
         async for row in cursor:
-            current_leaderboard += f"=> {row[0]} ({row[1]} points)"
+            current_leaderboard += f"=> {row[0]} ({row[1]} points)\n"
 
-    if len(final_pins) == 1:
-        await ctx.respond(f"<(￣︶￣)> This pin is valid for the next 18mn: {final_pins[0]}\n\n{current_leaderboard}")
+    if len(seeds) == 1:
+        pinslist = seed2pins(seeds[0])
+        next_three_pins = pinslist[2:5]
+        next_three_pins_str = ", ".join(str(pin) for pin in next_three_pins)
+
+        await ctx.respond(f"The next three pins are: {next_three_pins_str}\n\n{current_leaderboard}")
     else:
-        await ctx.respond(f"(・・ ) ? One of these pins is valid for the next 18mn: {final_pins}\n\n{current_leaderboard}")
+        next_pins_str = ""
+        for seed in seeds:
+            pinslist = seed2pins(seed)
+            next_three_pins = pinslist[2:5]
+            next_three_pins_str = ", ".join(str(pin) for pin in next_three_pins)
+
+            next_pins_str += f"- {next_three_pins_str}\n"
+
+        await ctx.respond(f"The next three pins are one of these:\n{next_pins_str}\n\n{current_leaderboard}")
 
 
 bot.run(os.environ.get("DISCORD_TOKEN"))
