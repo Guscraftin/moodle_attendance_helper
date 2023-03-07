@@ -111,9 +111,6 @@ async def on_ready():
         """
     )
 
-
-@bot.event
-async def on_ready():
     print(f"{bot.user} is ready and online!")
 
 
