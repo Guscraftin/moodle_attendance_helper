@@ -245,22 +245,23 @@ async def moodle_late(ctx):
         pinslist = seed2pins(current_seeds[0][0])
         i = (int(time.time()) - int(current_seeds[0][1])) // 40 + 2
         next_three_pins = pinslist[i : i + 3]
-        next_three_pins_str = ", ".join(str(pin) for pin in next_three_pins)
 
         await ctx.respond(
-            f"The next three pins are: {next_three_pins_str}", ephemeral=True
+            constants.PIN_ANNOUNCE_LINE % (next_three_pins[0], next_three_pins[1:]),
+            ephemeral=True,
         )
     else:
-        next_pins_str = ""
+        first_pins = []
+        next_pins = []
         for (seed, timestamp) in current_seeds:
             pinslist = seed2pins(seed)
             i = (int(time.time()) - int(timestamp)) // 40 + 2
-            next_three_pins = pinslist[i : i + 3]
-            next_three_pins_str = ", ".join(str(pin) for pin in next_three_pins)
-            next_pins_str += f"- {next_three_pins_str}\n"
+            next_three_pins = pinslist[i : i + 2]
+            first_pins.append(next_three_pins[0])
+            next_pins += next_three_pins[1:]
 
         await ctx.respond(
-            f"The next three pins are one of these:\n{next_pins_str}", ephemeral=True
+            constants.UNSURE_PINS_ANNOUNCE % (first_pins, next_pins), ephemeral=True
         )
 
 

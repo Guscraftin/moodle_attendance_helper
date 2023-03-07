@@ -10,3 +10,19 @@ IPFS_CIDS = [
     "bafybeiahmr5cgs5tr2u4g7fw5jw36jauiokajzcagvkr3mfxmqm7wafqou",
     "bafybeifuh5c4mcjqezy5tzlfocbcytyjp7usmrb2rvrvejwkjzygff5xt4",
 ]
+
+LEADERBOARD_LINE = "> -> %s: %s points"
+MAIN_PINS_ANNOUNCE = """||@Attendance||
+```fix
+Attendance codes are available!
+```
+%s
+
+You have 18mn to use the </moodle_late:0> command and get the codes if you're late here.
+
+》__Leaderboard :__
+%s"""
+PIN_ANNOUNCE_LINE = "Here is the current code **`%s`** and the next codes: `%s`"
+UNSURE_PINS_ANNOUNCE = (
+    "The current code is one of those: `%s`\nThe next code will be one of those: `%s`"
+)
