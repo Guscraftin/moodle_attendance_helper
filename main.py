@@ -227,6 +227,11 @@ async def moodle_pins(
 
 @bot.slash_command(description="Oh, you're late? Just ask me the pins!")
 async def moodle_late(ctx):
+    if str(ctx.channel_id) not in channel_ids:
+        return
+
+    print(ctx.interaction.id, ctx.author.id, ctx.author.name, "requested late pins")
+
     current_seeds = []
     query_recent_seeds = """
     SELECT seeds, datetime
