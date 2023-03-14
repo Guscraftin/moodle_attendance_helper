@@ -116,18 +116,16 @@ async def on_ready():
 
 @bot.slash_command(description="Gimme the first three pins")
 async def moodle_pins(
-    ctx, pin0: discord.Option(int), pin1: discord.Option(int), pin2: discord.Option(int)
+    ctx,
+    pin0: discord.Option(int, "The first pin", min_value=1000, max_value=10000),
+    pin1: discord.Option(int, "The second pin", min_value=1000, max_value=10000),
+    pin2: discord.Option(int, "The third pin", min_value=1000, max_value=10000)
 ):
     if str(ctx.channel_id) not in channel_ids:
         return
 
     pins = [pin0, pin1, pin2]
     print(ctx.interaction.id, ctx.author.id, ctx.author.name, "requested", pins)
-
-    for pin in pins:
-        if pin < 1000 or pin > 10000:
-            await ctx.respond("Wrong pins (╬ Ò﹏Ó)", ephemeral=True)
-            return
 
     target_aggpins = pins2aggpins(pins)
 
