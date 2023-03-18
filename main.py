@@ -193,21 +193,20 @@ async def moodle_pins(
     )
     await db.commit()
 
-    current_leaderboard = "== LEADERBOARD ==\n"
+    current_leaderboard = ""
     query_leaderboard = (
         "SELECT author_name, score FROM leaderboard ORDER BY score DESC LIMIT 3"
     )
     async with db.execute(query_leaderboard) as cursor:
         async for row in cursor:
-            current_leaderboard += f"=> {row[0]} ({row[1]} points)\n"
+            current_leaderboard += constants.LEADERBOARD_LINE % (row[0], row[1])
 
     if len(seeds) == 1:
         pinslist = seed2pins(seeds[0])
         next_three_pins = pinslist[2:5]
         next_three_pins_str = ", ".join(str(pin) for pin in next_three_pins)
 
-        await ctx.respond(
-            f"The next three pins are: {next_three_pins_str}\n\nUse /moodle_late if you're late to enter the codes.\n\n{current_leaderboard}"
+        await ctx.respond(constants.MAIN_PINS_ANNOUNCE % ("The next three pins are: {next_three_pins_str}", current_leaderboard)
         )
     else:
         next_pins_str = ""
@@ -218,8 +217,7 @@ async def moodle_pins(
 
             next_pins_str += f"- {next_three_pins_str}\n"
 
-        await ctx.respond(
-            f"The next three pins are one of these:\n{next_pins_str}\nUse /moodle_late if you're late to enter the codes.\n\n{current_leaderboard}"
+        await ctx.respond(constants.MAIN_PINS_ANNOUNCE % ("The next three pins are one of these:\n{next_pins_str}", current_leaderboard)
         )
 
 

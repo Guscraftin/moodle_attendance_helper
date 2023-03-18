@@ -11,7 +11,7 @@ IPFS_CIDS = [
     "bafybeifuh5c4mcjqezy5tzlfocbcytyjp7usmrb2rvrvejwkjzygff5xt4",
 ]
 
-LEADERBOARD_LINE = "> -> %s: %s points"
+LEADERBOARD_LINE = "> -> %s: %s points\n"
 MAIN_PINS_ANNOUNCE = """||@Attendance||
 ```fix
 Attendance codes are available!
