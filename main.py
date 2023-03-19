@@ -202,12 +202,22 @@ async def moodle_pins(
         async for row in cursor:
             current_leaderboard += constants.LEADERBOARD_LINE % (row[0], row[1])
 
+    ########################################
+    # Get time when pins were expired
+    # TODO: Need the date with hour in Timestamp (I don't know if your a exactly the expired session with seconds)
+    
+    # For convert date to timestamp
+    #TODO: Change the "" by the date
+    import time
+    expired_time = int(time.mktime(time.strptime("THE DATE LIKE -> 2023-03-19 14:06:45"))) - time.timezone
+    ########################################
+
     if len(seeds) == 1:
         pinslist = seed2pins(seeds[0])
         next_three_pins = pinslist[2:5]
         next_three_pins_str = ", ".join(str(pin) for pin in next_three_pins)
 
-        await ctx.respond(constants.MAIN_PINS_ANNOUNCE % ("The next three pins are: {next_three_pins_str}", current_leaderboard)
+        await ctx.respond(constants.MAIN_PINS_ANNOUNCE % ("The next three pins are: {next_three_pins_str}", expired_time, current_leaderboard)
         )
     else:
         next_pins_str = ""
@@ -218,7 +228,7 @@ async def moodle_pins(
 
             next_pins_str += f"- {next_three_pins_str}\n"
 
-        await ctx.respond(constants.MAIN_PINS_ANNOUNCE % ("The next three pins are one of these:\n{next_pins_str}", current_leaderboard)
+        await ctx.respond(constants.MAIN_PINS_ANNOUNCE % ("The next three pins are one of these:\n{next_pins_str}", expired_time, current_leaderboard)
         )
 
 
