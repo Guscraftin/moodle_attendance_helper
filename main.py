@@ -257,10 +257,10 @@ async def moodle_late(ctx):
     elif len(current_seeds) == 1:
         pinslist = seed2pins(current_seeds[0][0])
         i = (int(time.time()) - int(current_seeds[0][1])) // 40 + 2
-        next_three_pins = pinslist[i : i + 3]
+        next_pins = pinslist[i:]
 
         await ctx.respond(
-            constants.PIN_ANNOUNCE_LINE % (next_three_pins[0], next_three_pins[1:]),
+            constants.PIN_ANNOUNCE_LINE % (next_pins[0], next_pins[1:]),
             ephemeral=True,
         )
     else:
@@ -269,7 +269,7 @@ async def moodle_late(ctx):
         for (seed, timestamp) in current_seeds:
             pinslist = seed2pins(seed)
             i = (int(time.time()) - int(timestamp)) // 40 + 2
-            next_three_pins = pinslist[i : i + 2]
+            next_three_pins = pinslist[i:]
             first_pins.append(next_three_pins[0])
             next_pins += next_three_pins[1:]
 
