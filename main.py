@@ -196,7 +196,7 @@ async def moodle_pins(
 
     current_leaderboard = ""
     query_leaderboard = (
-        "SELECT author_name, score FROM leaderboard ORDER BY score DESC LIMIT 3"
+        "SELECT author_name, score FROM leaderboard ORDER BY score DESC LIMIT 32"
     )
     async with db.execute(query_leaderboard) as cursor:
         async for row in cursor:
