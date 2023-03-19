@@ -115,6 +115,7 @@ async def on_ready():
 
 
 @bot.slash_command(description="Gimme the first three pins")
+@discord.guild_only()
 async def moodle_pins(
     ctx,
     pin0: discord.Option(int, "The first pin", min_value=1000, max_value=10000),
@@ -222,6 +223,7 @@ async def moodle_pins(
 
 
 @bot.slash_command(description="Oh, you're late? Just ask me the pins!")
+@discord.guild_only()
 async def moodle_late(ctx):
     if str(ctx.channel_id) not in channel_ids:
         return
