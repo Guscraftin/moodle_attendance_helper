@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import asyncio
 
 import httpx, discord, aiosqlite
 from numpy.random import MT19937, RandomState
@@ -42,15 +43,13 @@ def seed2pins(seed):
     return list(seed2pins_iter(seed))
 
 
-async def get_seed_lookup_data(ctx, pin0):
+async def get_seed_lookup_data(pin0):
     local_lookup_folder = os.environ.get("LOCAL_LOOKUP_FOLDER")
     if local_lookup_folder is not None:
         filename = os.path.join(local_lookup_folder, str(pin0 // 1000), str(pin0))
         file = open(filename, "rb")
         data = file.read()
     else:
-        await ctx.defer()
-
         cid = constants.IPFS_CIDS[pin0 // 1000 - 1]
         if pin0 == 10000:
             url = f"https://{cid}.ipfs.nftstorage.link/"
@@ -114,19 +113,27 @@ async def on_ready():
     print(f"{bot.user} is ready and online!")
 
 
+pins_lock = asyncio.Lock()
+
+
 @bot.slash_command(description="Gimme the first three pins")
 @discord.guild_only()
 async def moodle_pins(
     ctx,
     pin0: discord.Option(int, "The first pin", min_value=1000, max_value=10000),
     pin1: discord.Option(int, "The second pin", min_value=1000, max_value=10000),
-    pin2: discord.Option(int, "The third pin", min_value=1000, max_value=10000)
+    pin2: discord.Option(int, "The third pin", min_value=1000, max_value=10000),
 ):
+    expired_time = int(time.time()) + 28 * 40
+    command_id = ctx.command.qualified_id
+
     if str(ctx.channel_id) not in channel_ids:
         return
 
     pins = [pin0, pin1, pin2]
     print(ctx.interaction.id, ctx.author.id, ctx.author.name, "requested", pins)
+
+    await pins_lock.acquire()
 
     target_aggpins = pins2aggpins(pins)
 
@@ -135,10 +142,13 @@ async def moodle_pins(
         async for row in cursor:
             if row[0] > 0:
                 await ctx.respond("Too late o(> < )o", ephemeral=True)
+                pins_lock.release()
                 return
             break
 
-    data = await get_seed_lookup_data(ctx, pin0)
+    await ctx.defer()
+
+    data = await get_seed_lookup_data(pin0)
 
     left = 0
     right = len(data) // 4
@@ -174,6 +184,7 @@ async def moodle_pins(
 
     if len(seeds) == 0:
         await ctx.respond("Wrong pins (╬ Ò﹏Ó)", ephemeral=True)
+        pins_lock.release()
         return
 
     await db.execute(
@@ -202,22 +213,19 @@ async def moodle_pins(
         async for row in cursor:
             current_leaderboard += constants.LEADERBOARD_LINE % (row[0], row[1])
 
-    ########################################
-    # Get time when pins were expired
-    # TODO: Need the date with hour in Timestamp (I don't know if your a exactly the expired session with seconds)
-    
-    # For convert date to timestamp
-    #TODO: Change the "" by the date
-    import time
-    expired_time = int(time.mktime(time.strptime("THE DATE LIKE -> 2023-03-19 14:06:45"))) - time.timezone
-    ########################################
-
     if len(seeds) == 1:
         pinslist = seed2pins(seeds[0])
         next_three_pins = pinslist[2:5]
         next_three_pins_str = ", ".join(str(pin) for pin in next_three_pins)
 
-        await ctx.respond(constants.MAIN_PINS_ANNOUNCE % ("The next three pins are: {next_three_pins_str}", expired_time, current_leaderboard)
+        await ctx.respond(
+            constants.MAIN_PINS_ANNOUNCE
+            % (
+                f"The next three pins are: {next_three_pins_str}",
+                expired_time,
+                command_id,
+                current_leaderboard,
+            )
         )
     else:
         next_pins_str = ""
@@ -228,9 +236,16 @@ async def moodle_pins(
 
             next_pins_str += f"- {next_three_pins_str}\n"
 
-        await ctx.respond(constants.MAIN_PINS_ANNOUNCE % ("The next three pins are one of these:\n{next_pins_str}", expired_time, current_leaderboard)
+        await ctx.respond(
+            constants.MAIN_PINS_ANNOUNCE
+            % (
+                f"The next three pins are one of these:\n{next_pins_str}",
+                expired_time,
+                command_id,
+                current_leaderboard,
+            )
         )
-
+    pins_lock.release()
 
 @bot.slash_command(description="Oh, you're late? Just ask me the pins!")
 @discord.guild_only()

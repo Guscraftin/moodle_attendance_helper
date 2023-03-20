@@ -18,7 +18,8 @@ Attendance codes are available!
 ```
 %s
 
-You have <t:%s:R> to use the </moodle_late:1082398107049930954> command and get the codes if you're late here.
+The codes won't work <t:%s:R>.
+Use the </moodle_late:%s> command and get the codes if you're late here.
 
 》__Leaderboard :__
 %s"""
