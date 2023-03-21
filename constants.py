@@ -12,7 +12,7 @@ IPFS_CIDS = [
 ]
 
 LEADERBOARD_LINE = "> -> %s: %s points\n"
-MAIN_PINS_ANNOUNCE = """||@Attendance||
+MAIN_PINS_ANNOUNCE = """||<@&1082653719310639194>||
 ```fix
 Attendance codes are available!
 ```
